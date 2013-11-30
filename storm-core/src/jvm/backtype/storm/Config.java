@@ -113,6 +113,13 @@ public class Config extends HashMap<String, Object> {
     public static final String STORM_LOCAL_HOSTNAME = "storm.local.hostname";
     public static final Object STORM_LOCAL_HOSTNAME_SCHEMA = String.class;
 
+/*    
+    public static final String STORM_SCHEDULER1_MAPPINGS = "storm.scheduler1.mappings";
+    public static final Object STORM_SCHEDULER1_MAPPINGS_SCHEMA = Map.class;
+    
+    public static final String STORM_SCHEDULER1_TOPOLOGY_NAME = "storm.scheduler1.topology.name";
+    public static final Object STORM_SCHEDULER1_TOPOLOGY_NAME_SCHEMA = String.class;*/
+    
     /**
      * The transport plug-in for Thrift client/server communication
      */
@@ -230,6 +237,12 @@ public class Config extends HashMap<String, Object> {
     public static final String NIMBUS_MONITOR_FREQ_SECS = "nimbus.monitor.freq.secs";
     public static final Object NIMBUS_MONITOR_FREQ_SECS_SCHEMA = Number.class;
 
+    /**
+     * 
+     */
+    public static final String NIMBUS_CHECK_WEAKLINGS_FREQ_SECS = "nimbus.check.weaklings.freq.secs";
+    public static final Object NIMBUS_CHECK_WEAKLINGS_FREQ_SECS_SCHEMA = Number.class;
+    
     /**
      * How often nimbus should wake the cleanup thread to clean the inbox.
      * @see NIMBUS_INBOX_JAR_EXPIRATION_SECS

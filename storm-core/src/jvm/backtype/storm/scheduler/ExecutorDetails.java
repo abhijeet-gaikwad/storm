@@ -8,7 +8,7 @@ public class ExecutorDetails {
         this.startTask = startTask;
         this.endTask = endTask;
     }
-
+    
     public int getStartTask() {
         return startTask;
     }

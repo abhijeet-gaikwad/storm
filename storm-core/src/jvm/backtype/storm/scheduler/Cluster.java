@@ -25,6 +25,7 @@ public class Cluster {
     private Map<String, List<String>>        hostToId;
     
     private Set<String> blackListedHosts = new HashSet<String>();
+    private Set<String> weakHosts = new HashSet<String>();
     private INimbus inimbus;
 
     public Cluster(INimbus nimbus, Map<String, SupervisorDetails> supervisors, Map<String, SchedulerAssignmentImpl> assignments){
@@ -44,7 +45,15 @@ public class Cluster {
         }
     }
     
-    public void setBlacklistedHosts(Set<String> hosts) {
+    public Set<String> getWeakHosts() {
+		return weakHosts;
+	}
+
+	public void setWeakHosts(Set<String> weakHosts) {
+		this.weakHosts = weakHosts;
+	}
+
+	public void setBlacklistedHosts(Set<String> hosts) {
         blackListedHosts = hosts;
     }
     
@@ -71,6 +80,23 @@ public class Cluster {
     public String getHost(String supervisorId) {
         return inimbus.getHostName(supervisors, supervisorId);
     }
+    
+    public void addWeakHost(String host) {
+        // this is so it plays well with setting blackListedHosts to an immutable list
+        if(weakHosts==null) weakHosts = new HashSet<String>();
+        if(!(weakHosts instanceof HashSet))
+        	weakHosts = new HashSet<String>(weakHosts);
+        weakHosts.add(host);
+    }
+    
+    public boolean isWeak(String supervisorId) {
+        return weakHosts != null && weakHosts.contains(getHost(supervisorId));        
+    }
+
+    public boolean isWeakHost(String host) {
+        return weakHosts != null && weakHosts.contains(host);  
+    }
+
     
     /**
      * Gets all the topologies which needs scheduling.

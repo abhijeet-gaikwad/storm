@@ -6,9 +6,11 @@
   (:import [java.nio ByteBuffer])
   (:import [java.io FileNotFoundException])
   (:import [java.nio.channels Channels WritableByteChannel])
+  (:import [java.util HashSet])
   (:use [backtype.storm.scheduler.DefaultScheduler])
   (:import [backtype.storm.scheduler INimbus SupervisorDetails WorkerSlot TopologyDetails
             Cluster Topologies SchedulerAssignment SchedulerAssignmentImpl DefaultScheduler ExecutorDetails])
+  (:import [backtype.storm.weakling CheckWeaklings])
   (:use [backtype.storm bootstrap util])
   (:use [backtype.storm.daemon common])
   (:gen-class
@@ -60,6 +62,7 @@
                                  (halt-process! 20 "Error when processing an event")
                                  ))
      :scheduler (mk-scheduler conf inimbus)
+     :check-weaks (atom false)
      }))
 
 (defn inbox [nimbus]
@@ -122,7 +125,7 @@
                     {:component->executors (:executor-overrides status)}
                     :num-workers
                     (:num-workers status)))
-  (mk-assignments nimbus :scratch-topology-id storm-id))
+  (mk-assignments nimbus false :scratch-topology-id storm-id))
 
 (defn state-transitions [nimbus storm-id status]
   {:active {:inactivate :inactive            
@@ -534,7 +537,7 @@
     0 ))
 
 ;; public so it can be mocked out
-(defn compute-new-topology->executor->node+port [nimbus existing-assignments topologies scratch-topology-id]
+(defn compute-new-topology->executor->node+port [nimbus existing-assignments topologies scratch-topology-id test]
   (let [conf (:conf nimbus)
         storm-cluster-state (:storm-cluster-state nimbus)
         topology->executors (compute-topology->executors nimbus (keys existing-assignments))
@@ -573,7 +576,12 @@
         
         supervisors (read-all-supervisor-details nimbus all-scheduling-slots supervisor->dead-ports)
         cluster (Cluster. (:inimbus nimbus) supervisors topology->scheduler-assignment)
-
+        ;_ (if (= (:check-weaks nimbus) true) 
+        ;    (do (println "weakhosts called") (.setWeakHosts cluster (.getWeakHosts (CheckWeaklings/getInstance)))) 
+        ;    (do (println "In else!!") (swap! (:check-weaks nimbus) not))
+        ;    )
+        _ (.setWeakHosts cluster (.getWeakHosts (CheckWeaklings/getInstance)))
+        ; _ ((.setWeakHosts cluster (:weak-hosts nimbus)))
         ;; call scheduler.schedule to schedule all the topologies
         ;; the new assignments for all the topologies are in the cluster object.
         _ (.schedule (:scheduler nimbus) topologies cluster)
@@ -629,7 +637,7 @@
 ;; figure out available slots on cluster. add to that the used valid slots to get total slots. figure out how many executors should be in each slot (e.g., 4, 4, 4, 5)
 ;; only keep existing slots that satisfy one of those slots. for rest, reassign them across remaining slots
 ;; edge case for slots with no executor timeout but with supervisor timeout... just treat these as valid slots that can be reassigned to. worst comes to worse the executor will timeout and won't assign here next time around
-(defnk mk-assignments [nimbus :scratch-topology-id nil]
+(defnk mk-assignments [nimbus test :scratch-topology-id nil]
   (let [conf (:conf nimbus)
         storm-cluster-state (:storm-cluster-state nimbus)
         ^INimbus inimbus (:inimbus nimbus) 
@@ -651,7 +659,7 @@
                                        nimbus
                                        existing-assignments
                                        topologies
-                                       scratch-topology-id)
+                                       scratch-topology-id test)
         
         
         now-secs (current-time-secs)
@@ -878,6 +886,11 @@
   )
 )
 
+;(defn chk-weaklings [conf] 
+; (let [weak (CheckWeaklings. conf)]
+; (.getWeaklings weak)
+; ))
+
 (defserverfn service-handler [conf inimbus]
   (.prepare inimbus conf (master-inimbus-dir conf))
   (log-message "Starting Nimbus with conf " conf)
@@ -886,15 +899,28 @@
     (cleanup-corrupt-topologies! nimbus)
     (doseq [storm-id (.active-storms (:storm-cluster-state nimbus))]
       (transition! nimbus storm-id :startup))
+
+         (schedule-recurring (:timer nimbus)
+                       0
+                       (conf NIMBUS-CHECK-WEAKLINGS-FREQ-SECS)
+                       (fn []
+                          (when (conf NIMBUS-REASSIGN)
+                            (.chkWeaklings (CheckWeaklings/getInstance conf))
+                            (locking (:submit-lock nimbus)
+                              (mk-assignments nimbus true)))
+                          (do-cleanup nimbus)
+                          ))
+
     (schedule-recurring (:timer nimbus)
                         0
                         (conf NIMBUS-MONITOR-FREQ-SECS)
                         (fn []
                           (when (conf NIMBUS-REASSIGN)
                             (locking (:submit-lock nimbus)
-                              (mk-assignments nimbus)))
+                              (mk-assignments nimbus false)))
                           (do-cleanup nimbus)
                           ))
+    
     ;; Schedule Nimbus inbox cleaner
     (schedule-recurring (:timer nimbus)
                         0
@@ -939,7 +965,7 @@
               (let [thrift-status->kw-status {TopologyInitialStatus/INACTIVE :inactive
                                               TopologyInitialStatus/ACTIVE :active}]
                 (start-storm nimbus storm-name storm-id (thrift-status->kw-status (.get_initial_status submitOptions))))
-              (mk-assignments nimbus)))
+              (mk-assignments nimbus false)))
           (catch Throwable e
             (log-warn-error e "Topology submission exception. (topology name='" storm-name "')")
             (throw e))))
