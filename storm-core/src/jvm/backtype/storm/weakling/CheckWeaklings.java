@@ -1,23 +1,22 @@
 package backtype.storm.weakling;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import org.apache.thrift7.TException;
 
-import backtype.storm.generated.BoltStats;
 import backtype.storm.generated.ClusterSummary;
 import backtype.storm.generated.ExecutorSummary;
 import backtype.storm.generated.Nimbus.Client;
 import backtype.storm.generated.GlobalStreamId;
 import backtype.storm.generated.NotAliveException;
-import backtype.storm.generated.StormTopology;
 import backtype.storm.generated.TopologyInfo;
 import backtype.storm.generated.TopologySummary;
+import backtype.storm.scheduler.ExecutorDetails;
 import backtype.storm.utils.NimbusClient;
 
 /**
@@ -30,10 +29,10 @@ public class CheckWeaklings {
 	private Map conf;
 	private Client tClient;
 	private static CheckWeaklings instance = null;
-	private Set<String> weakHosts = new HashSet<String>();
+	private Map<String,List<ExecutorDetails>> weakHosts = new HashMap<String,List<ExecutorDetails>>();
 	private boolean flag = false;
 
-	public Set<String> getWeakHosts() {
+	public Map<String, List<ExecutorDetails>> getWeakHosts() {
 		return weakHosts;
 	}
 
@@ -67,19 +66,55 @@ public class CheckWeaklings {
 		List<TopoStats> tStats = getTopologyStats();
 		System.out.println(tStats);
 
-		findOutliers(tStats); // TODO stub!
+		findWeakHosts(findOutliers(tStats), tStats);
 
-		weakHosts.add("localhost");
+		/*weakHosts.add("localhost");
 		if (flag) {
 			weakHosts.add("abc");
 		} else {
 			flag = true;
-		}
+		}*/
 
 		// for each topology find weaklings
 
 	}
 
+	private void findWeakHosts(List<TopoStats> modi, List<TopoStats> orig) {
+		Map<String,List<ExecutorDetails>> naya, purana;
+		
+		naya = getHostMappings(modi);
+		purana = getHostMappings(orig);
+		
+		Set<String> keys = naya.keySet();
+		for (String host : keys) {
+			if (naya.get(host).size() % purana.get(host).size() > .75) {
+				weakHosts.put(host, naya.get(host));
+			}
+		}
+	}
+
+	private Map<String,List<ExecutorDetails>> getHostMappings(List<TopoStats> st) {
+		Map<String, List<ExecutorDetails>> mp = new HashMap<String, List<ExecutorDetails>>();
+		
+		for (TopoStats tS : st) {
+			for (ComponentStats cS : tS.getcStats()) {
+				for (TaskStats tskS : cS.gettStats()) {
+					String host = tskS.getHost();
+					
+					if (mp.containsKey(host)) {
+						mp.get(host).add(tskS.getExecInfo());
+					} else {
+						List<ExecutorDetails> eD = new ArrayList<ExecutorDetails>();
+						eD.add(tskS.getExecInfo());
+						mp.put(host, eD);
+					}
+				}
+			}
+		}
+		
+		return mp;
+	}
+	
 	private List<TopoStats> getTopologyStats() {
 		ClusterSummary sum;
 		List<TopoStats> tStats = new ArrayList<TopoStats>();
@@ -113,11 +148,11 @@ public class CheckWeaklings {
 					if (null == cS) {
 						cS = new ComponentStats();
 						cS.setCompId(eSummary.get_component_id());
-						cS.setHost(eSummary.get_host());
 					}
 
 					TaskStats tskS = new TaskStats();
 					tskS.setExecInfo(eSummary.get_executor_info());
+					tskS.setHost(eSummary.get_host());
 					if (eSummary.get_stats().get_specific().is_set_bolt()) {
 						double avg = 0;
 						Map<GlobalStreamId, Double> tmp = eSummary.get_stats().get_specific()
@@ -151,9 +186,47 @@ public class CheckWeaklings {
 		return tStats;
 	}
 
-	private void findOutliers(List<TopoStats> tStats) {
-		// TODO Auto-generated method stub
+	private List<TopoStats> findOutliers(List<TopoStats> tStats) {
+		List<TopoStats> tpSts = tStats;
+		
+		for (TopoStats tS : tpSts) {
+			for (ComponentStats cS  : tS.getcStats()) {
+				findOutliersPerTasks(cS.gettStats());
+			}
+		}
 
+		return tpSts;
+	}
+	
+	private void findOutliersPerTasks(List<TaskStats> list) {
+		
+		Collections.sort(list);
+		
+		int n = list.size();
+		int qIdx = (n+1)/4;	////lower quartile
+		double q1 = list.get(qIdx - 1).execLatencies;
+		if (0 != (n+1) % 4) {
+			q1 = list.get(qIdx - 1).execLatencies + list.get(qIdx).execLatencies;
+		}
+		
+		qIdx = (3*(n+1))/4;	//upper quartile
+	    double q2 = list.get(qIdx - 1).execLatencies;
+	    if (0 != (3*(n+1)) % 4) {
+			q2 = list.get(qIdx - 1).execLatencies + list.get(qIdx).execLatencies;
+		}
+	    
+	    double IQR = q2 - q1;
+	    double upFence = q2 + IQR*1.5;
+	    
+	    for (int i = 0; i < qIdx; i++) {
+	    	list.remove(i);
+	    }
+	    
+	    for (int i = 0; i < list.size(); ++i) {
+	    	if (list.get(i).execLatencies < upFence) {
+	    		list.remove(i);
+	    	} else {break;}
+	    }
 	}
 
 }

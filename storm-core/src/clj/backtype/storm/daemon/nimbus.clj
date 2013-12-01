@@ -537,7 +537,7 @@
     0 ))
 
 ;; public so it can be mocked out
-(defn compute-new-topology->executor->node+port [nimbus existing-assignments topologies scratch-topology-id test]
+(defn compute-new-topology->executor->node+port [nimbus existing-assignments topologies scratch-topology-id]
   (let [conf (:conf nimbus)
         storm-cluster-state (:storm-cluster-state nimbus)
         topology->executors (compute-topology->executors nimbus (keys existing-assignments))
@@ -637,7 +637,7 @@
 ;; figure out available slots on cluster. add to that the used valid slots to get total slots. figure out how many executors should be in each slot (e.g., 4, 4, 4, 5)
 ;; only keep existing slots that satisfy one of those slots. for rest, reassign them across remaining slots
 ;; edge case for slots with no executor timeout but with supervisor timeout... just treat these as valid slots that can be reassigned to. worst comes to worse the executor will timeout and won't assign here next time around
-(defnk mk-assignments [nimbus test :scratch-topology-id nil]
+(defnk mk-assignments [nimbus :scratch-topology-id nil]
   (let [conf (:conf nimbus)
         storm-cluster-state (:storm-cluster-state nimbus)
         ^INimbus inimbus (:inimbus nimbus) 
@@ -659,7 +659,7 @@
                                        nimbus
                                        existing-assignments
                                        topologies
-                                       scratch-topology-id test)
+                                       scratch-topology-id)
         
         
         now-secs (current-time-secs)

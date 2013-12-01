@@ -6,17 +6,7 @@ import java.util.List;
 public class ComponentStats {
 	
   private String compId;
-  private String host;
-  
-  public String getHost() {
-	return host;
-  }
-
-  public void setHost(String host) {
-	this.host = host;
-  }
-
-private List<TaskStats> tStats = new ArrayList<TaskStats>();
+  private List<TaskStats> tStats = new ArrayList<TaskStats>();
   
   public String getCompId() {
 	return compId;
@@ -41,6 +31,6 @@ private List<TaskStats> tStats = new ArrayList<TaskStats>();
   @Override
 	public String toString() {
 		// TODO Auto-generated method stub
-		return "ComponentStats[compId:" + compId + " Host:" + host + " tStats:" + tStats + "]";
+		return "ComponentStats[compId:" + compId + " tStats:" + tStats + "]";
 	}
 }

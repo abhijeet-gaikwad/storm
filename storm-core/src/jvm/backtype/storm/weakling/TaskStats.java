@@ -3,12 +3,21 @@ package backtype.storm.weakling;
 import backtype.storm.generated.ExecutorInfo;
 import backtype.storm.scheduler.ExecutorDetails;
 
-public class TaskStats {
+public class TaskStats implements Comparable<TaskStats>{
 	
 	private ExecutorDetails execInfo;
-	int executors;
+	int executors; //may be used in future!
 	double execLatencies;
+	private String host;
 	
+	public String getHost() {
+		return host;
+	}
+
+	public void setHost(String host) {
+		this.host = host;
+	}
+
 	public ExecutorDetails getExecInfo() {
 		return execInfo;
 	}
@@ -41,6 +50,16 @@ public class TaskStats {
 	@Override
 	public String toString() {
 		// TODO Auto-generated method stub
-		return "TaskStats[execInfo:" + execInfo + " execLatencies:" + execLatencies + "]";
+		return "TaskStats[execInfo:" + execInfo + " Host:" + host + " execLatencies:" + execLatencies + "]";
+	}
+
+	@Override
+	public int compareTo(TaskStats o) {
+		if (this.execLatencies > o.execLatencies) {
+			return 1;
+		} else if (this.execLatencies < o.execLatencies) {
+			return -1;
+		}
+		return 0;	
 	}
 }

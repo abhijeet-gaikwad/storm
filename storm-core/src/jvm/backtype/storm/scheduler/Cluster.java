@@ -25,7 +25,7 @@ public class Cluster {
     private Map<String, List<String>>        hostToId;
     
     private Set<String> blackListedHosts = new HashSet<String>();
-    private Set<String> weakHosts = new HashSet<String>();
+    private Map<String,List<ExecutorDetails>> weakHosts = new HashMap<String,List<ExecutorDetails>>();
     private INimbus inimbus;
 
     public Cluster(INimbus nimbus, Map<String, SupervisorDetails> supervisors, Map<String, SchedulerAssignmentImpl> assignments){
@@ -45,11 +45,11 @@ public class Cluster {
         }
     }
     
-    public Set<String> getWeakHosts() {
+    public Map<String, List<ExecutorDetails>> getWeakHosts() {
 		return weakHosts;
 	}
 
-	public void setWeakHosts(Set<String> weakHosts) {
+	public void setWeakHosts(Map<String, List<ExecutorDetails>> weakHosts) {
 		this.weakHosts = weakHosts;
 	}
 
@@ -81,20 +81,20 @@ public class Cluster {
         return inimbus.getHostName(supervisors, supervisorId);
     }
     
-    public void addWeakHost(String host) {
+/*    public void addWeakHost(String host) {
         // this is so it plays well with setting blackListedHosts to an immutable list
         if(weakHosts==null) weakHosts = new HashSet<String>();
         if(!(weakHosts instanceof HashSet))
         	weakHosts = new HashSet<String>(weakHosts);
         weakHosts.add(host);
-    }
+    }*/
     
     public boolean isWeak(String supervisorId) {
-        return weakHosts != null && weakHosts.contains(getHost(supervisorId));        
+        return weakHosts != null && weakHosts.containsKey(getHost(supervisorId));        
     }
 
     public boolean isWeakHost(String host) {
-        return weakHosts != null && weakHosts.contains(host);  
+        return weakHosts != null && weakHosts.containsKey(host);  
     }
 
     
