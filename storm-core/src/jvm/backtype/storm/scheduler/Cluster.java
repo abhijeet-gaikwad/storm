@@ -224,6 +224,12 @@ public class Cluster {
      * @return
      */
     public List<WorkerSlot> getAvailableSlots(SupervisorDetails supervisor) {
+    	
+    	//Leave out weak hosts for next assignments 
+    	if (weakHosts.containsKey(supervisor.getHost())) {
+    		return new ArrayList<WorkerSlot>();
+    	}
+    	
         Set<Integer> ports = this.getAvailablePorts(supervisor);
         List<WorkerSlot> slots = new ArrayList<WorkerSlot>(ports.size());
 
@@ -235,6 +241,12 @@ public class Cluster {
     }
     
     public List<WorkerSlot> getAssignableSlots(SupervisorDetails supervisor) {
+    	
+    	//Leave out weak hosts for next assignments 
+    	if (weakHosts.containsKey(supervisor.getHost())) {
+    		return new ArrayList<WorkerSlot>();
+    	}
+    	
         Set<Integer> ports = this.getAssignablePorts(supervisor);
         List<WorkerSlot> slots = new ArrayList<WorkerSlot>(ports.size());
 
@@ -440,5 +452,17 @@ public class Cluster {
      */
     public Map<String, SupervisorDetails> getSupervisors() {
         return this.supervisors;
+    }
+    
+    /**
+     * removes executor assignments
+     * @param id
+     * @param executor
+     */
+    public void rmExecutorAssignment(String id, ExecutorDetails executor) {
+    	SchedulerAssignmentImpl impl = this.assignments.get(id); 
+    	if (null != impl) {
+    		this.assignments.get(id).rmExecutorAssignment(executor);
+    	}
     }
 }

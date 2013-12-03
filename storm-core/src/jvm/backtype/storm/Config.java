@@ -113,12 +113,15 @@ public class Config extends HashMap<String, Object> {
     public static final String STORM_LOCAL_HOSTNAME = "storm.local.hostname";
     public static final Object STORM_LOCAL_HOSTNAME_SCHEMA = String.class;
 
-/*    
-    public static final String STORM_SCHEDULER1_MAPPINGS = "storm.scheduler1.mappings";
-    public static final Object STORM_SCHEDULER1_MAPPINGS_SCHEMA = Map.class;
     
     public static final String STORM_SCHEDULER1_TOPOLOGY_NAME = "storm.scheduler1.topology.name";
-    public static final Object STORM_SCHEDULER1_TOPOLOGY_NAME_SCHEMA = String.class;*/
+    public static final Object STORM_SCHEDULER1_TOPOLOGY_NAME_SCHEMA = String.class;
+    
+    public static final String STORM_SCHEDULER1_EXECUTOR_NAME = "storm.scheduler1.executor.name";
+    public static final Object STORM_SCHEDULER1_EXECUTOR_NAME_SCHEMA = String.class;
+    
+    public static final String STORM_SCHEDULER1_HOST_NAME = "storm.scheduler1.host.name";
+    public static final Object STORM_SCHEDULER1_HOST_NAME_SCHEMA = String.class;
     
     /**
      * The transport plug-in for Thrift client/server communication

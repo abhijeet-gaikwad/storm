@@ -87,7 +87,7 @@ public class CheckWeaklings {
 		
 		Set<String> keys = naya.keySet();
 		for (String host : keys) {
-			if (naya.get(host).size() % purana.get(host).size() > .75) {
+			if (naya.get(host).size() / purana.get(host).size() > .5) {
 				weakHosts.put(host, naya.get(host));
 			}
 		}
@@ -206,13 +206,13 @@ public class CheckWeaklings {
 		int qIdx = (n+1)/4;	////lower quartile
 		double q1 = list.get(qIdx - 1).execLatencies;
 		if (0 != (n+1) % 4) {
-			q1 = list.get(qIdx - 1).execLatencies + list.get(qIdx).execLatencies;
+			q1 = (list.get(qIdx - 1).execLatencies + list.get(qIdx).execLatencies)/2;
 		}
 		
 		qIdx = (3*(n+1))/4;	//upper quartile
 	    double q2 = list.get(qIdx - 1).execLatencies;
 	    if (0 != (3*(n+1)) % 4) {
-			q2 = list.get(qIdx - 1).execLatencies + list.get(qIdx).execLatencies;
+			q2 = (list.get(qIdx - 1).execLatencies + list.get(qIdx).execLatencies)/2;
 		}
 	    
 	    double IQR = q2 - q1;

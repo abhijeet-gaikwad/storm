@@ -62,6 +62,10 @@ public class SchedulerAssignmentImpl implements SchedulerAssignment {
         }
     }
 
+    public void rmExecutorAssignment(ExecutorDetails exec) {
+    	this.executorToSlot.remove(exec);
+    }
+    
     /**
      * Does this slot occupied by this assignment?
      * @param slot
