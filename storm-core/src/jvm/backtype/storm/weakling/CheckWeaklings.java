@@ -31,6 +31,7 @@ public class CheckWeaklings {
 	private static CheckWeaklings instance = null;
 	private Map<String,List<ExecutorDetails>> weakHosts = new HashMap<String,List<ExecutorDetails>>();
 	private boolean flag = false;
+	private boolean init = false;
 
 	public Map<String, List<ExecutorDetails>> getWeakHosts() {
 		return weakHosts;
@@ -62,11 +63,20 @@ public class CheckWeaklings {
 	 * @return set of blacklisted hosts!
 	 */
 	public void chkWeaklings() {
+		
+		if (!init) {
+			init = true;
+			return;
+		}
 
 		List<TopoStats> tStats = getTopologyStats();
-		System.out.println(tStats);
+		//System.out.println("*********1" + tStats);
 
-		findWeakHosts(findOutliers(tStats), tStats);
+		List<TopoStats> tpsts = findOutliers(tStats);
+		System.out.println("*********2" + tpsts);
+		
+		findWeakHosts(tpsts, tStats);
+		System.out.println("*********3" + weakHosts);
 
 		/*weakHosts.add("localhost");
 		if (flag) {
@@ -88,7 +98,11 @@ public class CheckWeaklings {
 		Set<String> keys = naya.keySet();
 		for (String host : keys) {
 			if (naya.get(host).size() / purana.get(host).size() > .5) {
-				weakHosts.put(host, naya.get(host));
+				if (weakHosts.containsKey(host)) {
+					weakHosts.get(host).addAll(naya.get(host));
+				} else {
+					weakHosts.put(host, naya.get(host));
+				}
 			}
 		}
 	}
@@ -134,16 +148,19 @@ public class CheckWeaklings {
 				List<ExecutorSummary> eSummaries = info.get_executors();
 				for (ExecutorSummary eSummary : eSummaries) {
 					ComponentStats cS = null;
-					
+					boolean flag = false;
 					if (eSummary.get_component_id().equals("__acker")) {
 						continue; //leave ackers out!!
 					}
 					
 					for (ComponentStats tmp : tS.getcStats()) {
-						if (tmp.getCompId() == eSummary.get_component_id()) {
+						if (tmp.getCompId().equals(eSummary.get_component_id())) {
 							cS = tmp;
+							flag = true;
 						}
 					}
+					
+					//System.out.println("Before or new? " + cS);
 
 					if (null == cS) {
 						cS = new ComponentStats();
@@ -153,10 +170,15 @@ public class CheckWeaklings {
 					TaskStats tskS = new TaskStats();
 					tskS.setExecInfo(eSummary.get_executor_info());
 					tskS.setHost(eSummary.get_host());
-					if (eSummary.get_stats().get_specific().is_set_bolt()) {
+					
+					//System.out.println(eSummary.get_stats());
+					//System.out.println(eSummary.get_stats().get_specific());
+					//System.out.println(eSummary.get_stats().get_specific().is_set_bolt());
+					
+					if (eSummary.get_stats() != null && eSummary.get_stats().get_specific().is_set_bolt()) {
 						double avg = 0;
 						Map<GlobalStreamId, Double> tmp = eSummary.get_stats().get_specific()
-								.get_bolt().get_execute_ms_avg()
+								.get_bolt().get_process_ms_avg()
 								.get(":all-time"); // all-time
 
 						//System.out.println(tmp.size() + " " + tmp);
@@ -170,10 +192,20 @@ public class CheckWeaklings {
 						// spout encountered, skip!
 						continue;
 					}
+					
+					//System.out.println("taskStats before adding : " + tskS);
+					
 					cS.addTotStats(tskS);
-					tS.addTocStats(cS);
+					
+					if (!flag) {
+						//System.out.println("CompoStats before adding : " + cS);
+						tS.addTocStats(cS);
+					} 
+					
+					//System.out.println("TopologyStats after adding : " + tS);
 				}
 				tStats.add(tS);
+				//System.out.println("All ts : " + tStats);
 			}
 		} catch (TException e) {
 			// TODO Auto-generated catch block
@@ -191,25 +223,55 @@ public class CheckWeaklings {
 		
 		for (TopoStats tS : tpSts) {
 			for (ComponentStats cS  : tS.getcStats()) {
-				findOutliersPerTasks(cS.gettStats());
+				List<TaskStats> naya = findOutliersPerTasks(cS.gettStats());
+				System.out.println(naya);
+				cS.settStats(naya);
 			}
 		}
 
 		return tpSts;
 	}
 	
-	private void findOutliersPerTasks(List<TaskStats> list) {
+	private List<TaskStats> findOutliersPerTasks(List<TaskStats> list) {
 		
 		Collections.sort(list);
+		//System.out.println("Sorted : " + list);
+		System.out.println("Executions:");
+		
+		System.out.println("Before nan deletion!! " + list);
+		for (int j=0; j < list.size(); ++j) {
+			TaskStats ttttt = list.get(j);
+			if (Double.isNaN(ttttt.getExecLatencies())) {
+				System.out.println("Found NAN");
+				list.remove(j);
+				--j;
+			}
+			System.out.println(ttttt.getExecLatencies() + ",");
+		}
+		System.out.println("after nan deletion!! " + list);
 		
 		int n = list.size();
-		int qIdx = (n+1)/4;	////lower quartile
+		if (n <= 1)
+			return (new ArrayList<TaskStats>());
+		
+		if (n == 2) {
+			if (list.get(0).execLatencies > 3*list.get(1).execLatencies) {
+			  list.remove(1);
+			} else if (list.get(1).execLatencies > 3*list.get(0).execLatencies) {
+				list.remove(0);
+			}
+			return list;
+		}
+		
+		int qIdx = (n+1)/4;	////lower quartile index
+		
+		//System.out.println("*************Size : " + n + " " + qIdx);
 		double q1 = list.get(qIdx - 1).execLatencies;
 		if (0 != (n+1) % 4) {
 			q1 = (list.get(qIdx - 1).execLatencies + list.get(qIdx).execLatencies)/2;
 		}
 		
-		qIdx = (3*(n+1))/4;	//upper quartile
+		qIdx = (3*(n+1))/4;	//upper quartile index
 	    double q2 = list.get(qIdx - 1).execLatencies;
 	    if (0 != (3*(n+1)) % 4) {
 			q2 = (list.get(qIdx - 1).execLatencies + list.get(qIdx).execLatencies)/2;
@@ -217,16 +279,28 @@ public class CheckWeaklings {
 	    
 	    double IQR = q2 - q1;
 	    double upFence = q2 + IQR*1.5;
+	    System.out.println("Upfence!! : " + upFence);
 	    
-	    for (int i = 0; i < qIdx; i++) {
-	    	list.remove(i);
-	    }
+	    //for (int i = 0; i < qIdx; i++) {
+	    //	list.remove(i);
+	    //}
 	    
 	    for (int i = 0; i < list.size(); ++i) {
 	    	if (list.get(i).execLatencies < upFence) {
 	    		list.remove(i);
+	    		--i;
 	    	} else {break;}
 	    }
+	    
+	    System.out.println("LIST after removal: " + list);
+	    
+	    return list;
 	}
 
+	
+	public void setWeakHosts(Map<String, List<ExecutorDetails>> wh) {
+		weakHosts = wh;
+	}
+
+	
 }

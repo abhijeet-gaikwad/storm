@@ -330,6 +330,8 @@ public class Cluster {
             slots.addAll(this.getAvailableSlots(supervisor));
         }
 
+        System.out.println("Slots returned: " + slots);
+        
         return slots;
     }
     

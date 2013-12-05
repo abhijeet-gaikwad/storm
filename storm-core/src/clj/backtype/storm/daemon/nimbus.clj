@@ -125,7 +125,7 @@
                     {:component->executors (:executor-overrides status)}
                     :num-workers
                     (:num-workers status)))
-  (mk-assignments nimbus false :scratch-topology-id storm-id))
+  (mk-assignments nimbus :scratch-topology-id storm-id))
 
 (defn state-transitions [nimbus storm-id status]
   {:active {:inactivate :inactive            
@@ -907,7 +907,7 @@
                           (when (conf NIMBUS-REASSIGN)
                             (.chkWeaklings (CheckWeaklings/getInstance conf))
                             (locking (:submit-lock nimbus)
-                              (mk-assignments nimbus true)))
+                              (mk-assignments nimbus)))
                           (do-cleanup nimbus)
                           ))
 
@@ -917,7 +917,7 @@
                         (fn []
                           (when (conf NIMBUS-REASSIGN)
                             (locking (:submit-lock nimbus)
-                              (mk-assignments nimbus false)))
+                              (mk-assignments nimbus)))
                           (do-cleanup nimbus)
                           ))
     
@@ -965,7 +965,7 @@
               (let [thrift-status->kw-status {TopologyInitialStatus/INACTIVE :inactive
                                               TopologyInitialStatus/ACTIVE :active}]
                 (start-storm nimbus storm-name storm-id (thrift-status->kw-status (.get_initial_status submitOptions))))
-              (mk-assignments nimbus false)))
+              (mk-assignments nimbus)))
           (catch Throwable e
             (log-warn-error e "Topology submission exception. (topology name='" storm-name "')")
             (throw e))))
